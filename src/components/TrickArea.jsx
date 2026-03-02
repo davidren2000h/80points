@@ -7,10 +7,10 @@ import Card from './Card.jsx';
 export default function TrickArea({ trick, players, trickLeader }) {
   // Position plays around a central area: South(bottom), West(left), North(top), East(right)
   const positions = [
-    { label: 'South', style: { bottom: 0, left: '50%', transform: 'translateX(-50%)' } },
-    { label: 'West', style: { top: '50%', left: 0, transform: 'translateY(-50%)' } },
-    { label: 'North', style: { top: 0, left: '50%', transform: 'translateX(-50%)' } },
-    { label: 'East', style: { top: '50%', right: 0, transform: 'translateY(-50%)' } },
+    { label: 'South', style: { bottom: 10, left: '50%', transform: 'translateX(-50%)' } },
+    { label: 'West', style: { top: '50%', left: 10, transform: 'translateY(-50%)' } },
+    { label: 'North', style: { top: 10, left: '50%', transform: 'translateX(-50%)' } },
+    { label: 'East', style: { top: '50%', right: 10, transform: 'translateY(-50%)' } },
   ];
 
   return (
@@ -47,8 +47,8 @@ const containerStyle = {
 
 const trickAreaStyle = {
   position: 'relative',
-  width: 340,
-  height: 260,
+  width: 500,
+  height: 380,
   border: '2px dashed #bdc3c7',
   borderRadius: 16,
   background: 'rgba(39,174,96,0.05)',
