@@ -7,7 +7,7 @@ import BottomPanel from './BottomPanel.jsx';
 import ScoreBoard from './ScoreBoard.jsx';
 import Card from './Card.jsx';
 import { PHASES, aiSelectBottomDiscard } from '../game/gameEngine.js';
-import { sortHand } from '../game/cardUtils.js';
+import { sortHand, SUIT_SYMBOLS, SUIT_COLORS } from '../game/cardUtils.js';
 
 /**
  * Main game board layout.
@@ -128,6 +128,23 @@ export default function GameBoard({ state, onAction }) {
         <div style={messageBannerStyle}>
           {message}
         </div>
+
+        {/* Trump Indicator */}
+        {phase !== PHASES.SETUP && phase !== PHASES.GAME_OVER && (
+          <div style={trumpIndicatorStyle}>
+            <span style={{ fontSize: 12, color: '#bdc3c7' }}>Trump:</span>
+            <span style={{ fontSize: 16, fontWeight: 'bold', color: '#f1c40f' }}>{state.trumpRank}</span>
+            {state.noTrump ? (
+              <span style={trumpBadgeNoTrump}>No-Trump</span>
+            ) : state.trumpSuit ? (
+              <span style={{ ...trumpBadgeSuit, color: SUIT_COLORS[state.trumpSuit] }}>
+                {SUIT_SYMBOLS[state.trumpSuit]} {state.trumpSuit.charAt(0).toUpperCase() + state.trumpSuit.slice(1)}
+              </span>
+            ) : (
+              <span style={{ fontSize: 13, color: '#95a5a6', fontStyle: 'italic' }}>Undeclared</span>
+            )}
+          </div>
+        )}
 
         {/* ── DEALING PHASE ──────────────────────────── */}
         {phase === PHASES.DEALING && (
@@ -485,6 +502,34 @@ const messageBannerStyle = {
   color: '#2c3e50',
   textAlign: 'center',
   boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+};
+
+const trumpIndicatorStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 10,
+  padding: '6px 16px',
+  background: 'rgba(0,0,0,0.4)',
+  borderRadius: 8,
+  border: '1px solid rgba(241,196,15,0.4)',
+};
+
+const trumpBadgeSuit = {
+  fontSize: 18,
+  fontWeight: 'bold',
+  padding: '2px 10px',
+  borderRadius: 6,
+  background: 'rgba(255,255,255,0.9)',
+};
+
+const trumpBadgeNoTrump = {
+  fontSize: 14,
+  fontWeight: 'bold',
+  padding: '2px 10px',
+  borderRadius: 6,
+  background: 'rgba(155,89,182,0.3)',
+  color: '#9b59b6',
 };
 
 const progressBarContainerStyle = {
