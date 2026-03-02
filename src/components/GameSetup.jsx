@@ -86,7 +86,7 @@ export default function GameSetup({ deckCount, onDeckCountChange, onStart, onSet
           ))}
         </div>
         <div style={{ fontSize: 11, color: '#ddd', marginTop: 8, textAlign: 'center' }}>
-          Team 1: South &amp; North · Team 2: West &amp; East
+          Team 1: {players[0]?.name} &amp; {players[2]?.name} · Team 2: {players[1]?.name} &amp; {players[3]?.name}
         </div>
         <button
           style={reshuffleBtn}
