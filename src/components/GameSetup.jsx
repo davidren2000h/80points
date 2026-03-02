@@ -32,7 +32,7 @@ export default function GameSetup({ deckCount, onDeckCountChange, onStart, onSet
       <h2 style={subtitleStyle}>升级 · Shengji · Tractor</h2>
 
       <div style={nameInputSection}>
-        <h3 style={{ margin: '0 0 12px 0', color: '#2c3e50' }}>Your Name</h3>
+        <h3 style={{ margin: '0 0 12px 0', color: '#ecf0f1' }}>Your Name</h3>
         <input
           type="text"
           value={playerName}
@@ -45,7 +45,7 @@ export default function GameSetup({ deckCount, onDeckCountChange, onStart, onSet
       </div>
 
       <div style={deckSelectStyle}>
-        <h3 style={{ margin: '0 0 12px 0', color: '#2c3e50' }}>Select Deck Count</h3>
+        <h3 style={{ margin: '0 0 12px 0', color: '#ecf0f1' }}>Select Deck Count</h3>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           {configs.map(cfg => (
             <button
@@ -74,18 +74,18 @@ export default function GameSetup({ deckCount, onDeckCountChange, onStart, onSet
       </div>
 
       <div style={playersStyle}>
-        <h3 style={{ margin: '0 0 8px 0', color: '#2c3e50' }}>Players</h3>
+        <h3 style={{ margin: '0 0 8px 0', color: '#ecf0f1' }}>Players</h3>
         <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
           {players.map((p, i) => (
             <div key={i} style={playerCardStyle}>
-              <div style={{ fontSize: 13, fontWeight: 'bold' }}>Team {p.team + 1}: {p.name}</div>
-              <div style={{ fontSize: 11, color: '#7f8c8d' }}>
+              <div style={{ fontSize: 13, fontWeight: 'bold', color: '#2c3e50' }}>Team {p.team + 1}: {p.name}</div>
+              <div style={{ fontSize: 11, color: '#555' }}>
                 Level {p.level}{i === 0 ? ' (You)' : ' (AI)'}
               </div>
             </div>
           ))}
         </div>
-        <div style={{ fontSize: 11, color: '#95a5a6', marginTop: 8, textAlign: 'center' }}>
+        <div style={{ fontSize: 11, color: '#ddd', marginTop: 8, textAlign: 'center' }}>
           Team 1: South &amp; North · Team 2: West &amp; East
         </div>
         <button
@@ -124,7 +124,7 @@ const titleStyle = {
 
 const subtitleStyle = {
   fontSize: 16,
-  color: '#7f8c8d',
+  color: '#ecf0f1',
   fontWeight: 'normal',
   margin: 0,
 };
@@ -204,7 +204,7 @@ const reshuffleBtn = {
   background: '#fff',
   cursor: 'pointer',
   fontSize: 12,
-  color: '#7f8c8d',
+  color: '#555',
 };
 
 const startBtnStyle = {
