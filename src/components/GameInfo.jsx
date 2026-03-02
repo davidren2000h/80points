@@ -1,5 +1,6 @@
 import React from 'react';
 import { getNoTrumpRequirement, getCounterTrumpRequirements } from '../game/rulesEngine.js';
+import { SUIT_SYMBOLS, SUIT_COLORS } from '../game/cardUtils.js';
 
 /**
  * Shows game info: trump, scores, levels, configuration details.
@@ -17,9 +18,28 @@ export default function GameInfo({ state }) {
   const declarerTeamPlayers = players.filter(p => p.team === declarerTeam).map(p => p.name).join(' & ');
   const nonDeclarerTeamPlayers = players.filter(p => p.team !== declarerTeam).map(p => p.name).join(' & ');
 
+  const suitName = trumpSuit ? trumpSuit.charAt(0).toUpperCase() + trumpSuit.slice(1) : null;
+
   return (
     <div style={panelStyle}>
       <div style={headerStyle}>Game Info</div>
+
+      {/* ── Trump Banner ─────────────────────── */}
+      <div style={trumpBannerStyle}>
+        <span style={{ fontSize: 13, color: '#bdc3c7' }}>Trump:</span>
+        <span style={{ fontSize: 16, fontWeight: 'bold', color: '#f1c40f' }}>{trumpRank || '—'}</span>
+        {noTrump ? (
+          <span style={trumpBadgeNoTrump}>No-Trump</span>
+        ) : trumpSuit ? (
+          <span style={{ ...trumpBadgeSuit, color: SUIT_COLORS[trumpSuit] }}>
+            {SUIT_SYMBOLS[trumpSuit]} {suitName}
+          </span>
+        ) : (
+          <span style={{ fontSize: 13, color: '#95a5a6', fontStyle: 'italic' }}>Undeclared</span>
+        )}
+      </div>
+
+      <div style={dividerStyle} />
 
       <div style={sectionStyle}>
         <InfoRow label="Round" value={roundNumber} />
@@ -136,4 +156,32 @@ const sectionStyle = {
 const dividerStyle = {
   borderBottom: '1px solid #eee',
   margin: '2px 0',
+};
+
+const trumpBannerStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  padding: '8px 12px',
+  background: 'rgba(44,62,80,0.9)',
+  borderRadius: 8,
+  border: '1px solid rgba(241,196,15,0.5)',
+};
+
+const trumpBadgeSuit = {
+  fontSize: 18,
+  fontWeight: 'bold',
+  padding: '2px 10px',
+  borderRadius: 6,
+  background: 'rgba(255,255,255,0.9)',
+};
+
+const trumpBadgeNoTrump = {
+  fontSize: 14,
+  fontWeight: 'bold',
+  padding: '2px 10px',
+  borderRadius: 6,
+  background: 'rgba(155,89,182,0.3)',
+  color: '#9b59b6',
 };
