@@ -85,7 +85,7 @@ export default function GameSetup({ deckCount, onDeckCountChange, onStart, onSet
             </div>
           ))}
         </div>
-        <div style={{ fontSize: 12, color: '#fff', marginTop: 8, textAlign: 'center', fontWeight: 'bold' }}>
+        <div style={{ fontSize: 12, color: '#2c3e50', marginTop: 8, textAlign: 'center', fontWeight: 'bold' }}>
           Team 1: {players[0]?.name} &amp; {players[2]?.name} · Team 2: {players[1]?.name} &amp; {players[3]?.name}
         </div>
         <button
