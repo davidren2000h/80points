@@ -116,9 +116,10 @@ const containerStyle = {
 const titleStyle = {
   fontSize: 42,
   fontWeight: 'bold',
-  color: '#2c3e50',
+  color: '#f1c40f',
   margin: 0,
   letterSpacing: 2,
+  textShadow: '0 2px 8px rgba(0,0,0,0.3)',
 };
 
 const subtitleStyle = {

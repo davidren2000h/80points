@@ -21,7 +21,7 @@ export default function TrickArea({ trick, players, trickLeader }) {
           return (
             <div key={i} style={{ position: 'absolute', ...pos.style, display: 'flex', gap: 2 }}>
               {play.cards.map(card => (
-                <Card key={card.id} card={card} small disabled />
+                <Card key={card.id} card={card} disabled />
               ))}
             </div>
           );
@@ -47,8 +47,8 @@ const containerStyle = {
 
 const trickAreaStyle = {
   position: 'relative',
-  width: 280,
-  height: 200,
+  width: 340,
+  height: 260,
   border: '2px dashed #bdc3c7',
   borderRadius: 16,
   background: 'rgba(39,174,96,0.05)',
