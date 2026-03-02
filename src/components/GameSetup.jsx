@@ -32,7 +32,7 @@ export default function GameSetup({ deckCount, onDeckCountChange, onStart, onSet
       <h2 style={subtitleStyle}>升级 · Shengji · Tractor</h2>
 
       <div style={nameInputSection}>
-        <h3 style={{ margin: '0 0 12px 0', color: '#ecf0f1' }}>Your Name</h3>
+        <h3 style={{ margin: '0 0 12px 0', color: '#2c3e50' }}>Your Name</h3>
         <input
           type="text"
           value={playerName}
@@ -45,7 +45,7 @@ export default function GameSetup({ deckCount, onDeckCountChange, onStart, onSet
       </div>
 
       <div style={deckSelectStyle}>
-        <h3 style={{ margin: '0 0 12px 0', color: '#ecf0f1' }}>Select Deck Count</h3>
+        <h3 style={{ margin: '0 0 12px 0', color: '#2c3e50' }}>Select Deck Count</h3>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           {configs.map(cfg => (
             <button
@@ -74,7 +74,7 @@ export default function GameSetup({ deckCount, onDeckCountChange, onStart, onSet
       </div>
 
       <div style={playersStyle}>
-        <h3 style={{ margin: '0 0 8px 0', color: '#ecf0f1' }}>Players</h3>
+        <h3 style={{ margin: '0 0 8px 0', color: '#2c3e50' }}>Players</h3>
         <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
           {players.map((p, i) => (
             <div key={i} style={playerCardStyle}>
