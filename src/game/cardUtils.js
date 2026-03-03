@@ -129,7 +129,11 @@ export function cardSortValue(card, trumpSuit, trumpRank) {
   const isTrumpSuit = card.suit === trumpSuit;
 
   if (isTrumpRank && isTrumpSuit) return 998; // Trump rank of trump suit
-  if (isTrumpRank) return 997; // Trump rank of other suits
+  if (isTrumpRank) {
+    // Off-suit trump-rank cards: group by suit so identical cards stay together
+    const SUIT_SUB = { spades: 3, hearts: 2, diamonds: 1, clubs: 0 };
+    return 993 + (SUIT_SUB[card.suit] || 0); // 993-996, below trump-suit trump-rank (998)
+  }
 
   if (isTrumpSuit) {
     return 500 + RANK_ORDER[card.rank]; // Trump suit cards
