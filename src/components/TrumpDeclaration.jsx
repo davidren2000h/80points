@@ -86,12 +86,14 @@ const panelStyle = {
 };
 
 const currentDeclStyle = {
-  background: '#fef9e7',
+  background: '#fff3cd',
   padding: 8,
   borderRadius: 6,
-  fontSize: 13,
+  fontSize: 14,
+  fontWeight: 'bold',
+  color: '#856404',
   marginBottom: 8,
-  border: '1px solid #f9e79f',
+  border: '1px solid #f0c36d',
 };
 
 const btnStyle = {
