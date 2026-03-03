@@ -5,7 +5,8 @@
 
 import {
   isTrump, getEffectiveSuit, cardStrength, countPoints,
-  findPairs, findTractors, groupBySuit, SUITS, RANK_ORDER, removeCards,
+  findPairs, findTractors, findGroups, findTractorGroups, findTriplets, findQuads,
+  groupBySuit, SUITS, RANK_ORDER, removeCards,
 } from './cardUtils.js';
 
 // ══════════════════════════════════════════════════════════
@@ -100,59 +101,25 @@ export function getCounterTrumpRequirements(deckCount, currentDeclaration) {
 
 /**
  * Determine what cards a player can legally play.
- * @param {object[]} hand - Player's current hand
- * @param {object[]} leadPlay - The cards led in this trick
- * @param {string} trumpSuit
- * @param {string} trumpRank
- * @returns {object[]} - Array of playable cards from hand
+ * Returns the pool of cards the player may choose from.
+ * Actual structure enforcement is in validatePlay.
  */
 export function getLegalPlays(hand, leadPlay, trumpSuit, trumpRank) {
   if (!leadPlay || leadPlay.length === 0) {
-    // Leading: can play anything
     return hand;
   }
 
   const leadSuit = getEffectiveSuit(leadPlay[0], trumpSuit, trumpRank);
-  const leadStructure = analyzePlay(leadPlay, trumpSuit, trumpRank);
   const suitCards = hand.filter(c => getEffectiveSuit(c, trumpSuit, trumpRank) === leadSuit);
 
   if (suitCards.length === 0) {
-    // No cards of the led suit — can play anything
     return hand;
   }
 
   const requiredCount = leadPlay.length;
-
   if (suitCards.length <= requiredCount) {
-    // Must play all suit cards, plus fill from other cards
     if (suitCards.length < requiredCount) {
-      // Play all suit cards + any cards to make up the count
-      // Return all cards as playable (engine will enforce that all suit cards are used)
       return hand;
-    }
-    return suitCards;
-  }
-
-  // Have more suit cards than needed: must pick from suit cards
-  // For structured plays (pairs, tractors), try to match structure
-  if (leadStructure.type === 'pair') {
-    const pairs = findPairs(suitCards, trumpSuit, trumpRank);
-    if (pairs.length > 0) {
-      // Must play a pair if possible
-      return suitCards; // Engine constrains to pairs from suit
-    }
-    return suitCards;
-  }
-
-  if (leadStructure.type === 'tractor') {
-    const tractors = findTractors(suitCards, trumpSuit, trumpRank);
-    if (tractors.length > 0) {
-      return suitCards;
-    }
-    // No tractor: try pairs
-    const pairs = findPairs(suitCards, trumpSuit, trumpRank);
-    if (pairs.length > 0) {
-      return suitCards;
     }
     return suitCards;
   }
@@ -162,10 +129,10 @@ export function getLegalPlays(hand, leadPlay, trumpSuit, trumpRank) {
 
 /**
  * Validate that a specific play selection is legal.
+ * Enforces follow-suit and structure-first rules.
  */
 export function validatePlay(selectedCards, hand, leadPlay, trumpSuit, trumpRank) {
   if (!leadPlay || leadPlay.length === 0) {
-    // Leading: validate play structure
     return validateLeadPlay(selectedCards, trumpSuit, trumpRank);
   }
 
@@ -174,7 +141,6 @@ export function validatePlay(selectedCards, hand, leadPlay, trumpSuit, trumpRank
     return { valid: false, reason: `Must play exactly ${requiredCount} card(s)` };
   }
 
-  // Check all selected cards are in hand
   const handIds = new Set(hand.map(c => c.id));
   if (!selectedCards.every(c => handIds.has(c.id))) {
     return { valid: false, reason: 'Selected cards not in hand' };
@@ -185,12 +151,12 @@ export function validatePlay(selectedCards, hand, leadPlay, trumpSuit, trumpRank
   const selectedSuitCards = selectedCards.filter(c => getEffectiveSuit(c, trumpSuit, trumpRank) === leadSuit);
 
   if (suitCards.length >= requiredCount) {
-    // Must play only suit cards
     if (selectedSuitCards.length < requiredCount) {
       return { valid: false, reason: `Must follow suit (${leadSuit})` };
     }
+    // Enforce structure-first rule (triplet > pair > single)
+    return validateFollowStructure(selectedSuitCards, suitCards, leadPlay, trumpSuit, trumpRank);
   } else {
-    // Must play all suit cards first
     if (selectedSuitCards.length < suitCards.length) {
       return { valid: false, reason: `Must play all ${leadSuit} cards first` };
     }
@@ -200,32 +166,78 @@ export function validatePlay(selectedCards, hand, leadPlay, trumpSuit, trumpRank
 }
 
 /**
+ * Validate that follow cards maximize structure usage.
+ * Enforces the downgrade chain: quad > triplet > pair > single.
+ */
+function validateFollowStructure(selectedSuitCards, allSuitCards, leadPlay, trumpSuit, trumpRank) {
+  const leadAnalysis = analyzePlay(leadPlay, trumpSuit, trumpRank);
+
+  if (leadAnalysis.type === 'single') return { valid: true };
+
+  // Determine target group size from lead
+  let targetGroupSize;
+  if (leadAnalysis.type === 'pair') targetGroupSize = 2;
+  else if (leadAnalysis.type === 'triplet') targetGroupSize = 3;
+  else if (leadAnalysis.type === 'quad') targetGroupSize = 4;
+  else if (leadAnalysis.type === 'tractor') targetGroupSize = leadAnalysis.groupSize;
+  else return { valid: true };
+
+  // For tractors, first check matching tractor requirement
+  if (leadAnalysis.type === 'tractor') {
+    const availTractors = findTractorGroups(allSuitCards, leadAnalysis.groupSize, trumpSuit, trumpRank);
+    const matching = availTractors.filter(t => t.length >= leadAnalysis.groups);
+    if (matching.length > 0) {
+      const selectedTractors = findTractorGroups(selectedSuitCards, leadAnalysis.groupSize, trumpSuit, trumpRank);
+      const selectedMatching = selectedTractors.filter(t => t.length >= leadAnalysis.groups);
+      if (selectedMatching.length === 0) {
+        return { valid: false, reason: 'Must play a matching tractor when you have one' };
+      }
+      return { valid: true };
+    }
+  }
+
+  // Structure downgrade check: must use highest available structure
+  const names = { 2: 'pair', 3: 'triplet', 4: 'quad' };
+  for (let gs = targetGroupSize; gs >= 2; gs--) {
+    const availGroups = findGroups(allSuitCards, gs, trumpSuit, trumpRank);
+    if (availGroups.length > 0) {
+      const selectedGroups = findGroups(selectedSuitCards, gs, trumpSuit, trumpRank);
+      if (selectedGroups.length === 0) {
+        return { valid: false, reason: `Must play a ${names[gs] || gs + '-group'} when you have one` };
+      }
+      return { valid: true };
+    }
+  }
+
+  return { valid: true };
+}
+
+/**
  * Validate a lead play structure.
+ * Supports singles, pairs, triplets, quads, tractors (all group sizes), and throws.
  */
 export function validateLeadPlay(cards, trumpSuit, trumpRank) {
   if (cards.length === 0) return { valid: false, reason: 'Must play at least 1 card' };
   if (cards.length === 1) return { valid: true };
 
-  // All cards must be of the same effective suit
   const suit = getEffectiveSuit(cards[0], trumpSuit, trumpRank);
   if (!cards.every(c => getEffectiveSuit(c, trumpSuit, trumpRank) === suit)) {
     return { valid: false, reason: 'All cards in a play must be the same suit' };
   }
 
-  if (cards.length === 2) {
-    // Must be a pair
-    const s1 = cardStrength(cards[0], trumpSuit, trumpRank);
-    const s2 = cardStrength(cards[1], trumpSuit, trumpRank);
-    if (s1 === s2) return { valid: true };
-    return { valid: false, reason: 'Two cards must form a pair' };
+  const analysis = analyzePlay(cards, trumpSuit, trumpRank);
+
+  // Valid atomic structures: pair, triplet, quad, tractor (any group size)
+  if (['pair', 'triplet', 'quad', 'tractor'].includes(analysis.type)) {
+    return { valid: true };
   }
 
-  // 4+ cards: tractor or throw
-  const analysis = analyzePlay(cards, trumpSuit, trumpRank);
-  if (analysis.type !== 'invalid') return { valid: true };
-
   // Check if it's a valid throw (甩牌)
-  return validateThrow(cards, trumpSuit, trumpRank);
+  if (analysis.type === 'throw') {
+    return validateThrow(cards, trumpSuit, trumpRank);
+  }
+
+  return { valid: false, reason: 'Invalid card combination' };
 }
 
 // ══════════════════════════════════════════════════════════
@@ -234,31 +246,11 @@ export function validateLeadPlay(cards, trumpSuit, trumpRank) {
 
 /**
  * Analyze a play to determine its type and structure.
+ * Supports: single, pair, triplet, quad, tractor (pair/triplet/quad based), throw.
  */
 export function analyzePlay(cards, trumpSuit, trumpRank) {
   if (cards.length === 0) return { type: 'invalid' };
   if (cards.length === 1) return { type: 'single', cards, strength: cardStrength(cards[0], trumpSuit, trumpRank) };
-
-  // Check for pair
-  if (cards.length === 2) {
-    const s1 = cardStrength(cards[0], trumpSuit, trumpRank);
-    const s2 = cardStrength(cards[1], trumpSuit, trumpRank);
-    if (s1 === s2) return { type: 'pair', cards, strength: s1 };
-    return { type: 'invalid' };
-  }
-
-  // Check for tractor (consecutive pairs)
-  if (cards.length % 2 === 0) {
-    const tractorResult = checkTractor(cards, trumpSuit, trumpRank);
-    if (tractorResult) return { type: 'tractor', cards, strength: tractorResult.maxStrength, pairs: tractorResult.pairs };
-  }
-
-  // Could be a throw
-  return { type: 'throw', cards };
-}
-
-function checkTractor(cards, trumpSuit, trumpRank) {
-  if (cards.length < 4 || cards.length % 2 !== 0) return null;
 
   // Group by strength
   const byStrength = {};
@@ -268,20 +260,44 @@ function checkTractor(cards, trumpSuit, trumpRank) {
     byStrength[s].push(card);
   }
 
-  // Each strength must have exactly 2 cards
   const strengths = Object.keys(byStrength).map(Number).sort((a, b) => a - b);
-  if (strengths.length !== cards.length / 2) return null;
-  if (!strengths.every(s => byStrength[s].length === 2)) return null;
+  const groupSizes = strengths.map(s => byStrength[s].length);
 
-  // Check consecutive
-  for (let i = 1; i < strengths.length; i++) {
-    if (strengths[i] - strengths[i - 1] !== 1) return null;
+  // Single group of same-strength cards
+  if (strengths.length === 1) {
+    const size = groupSizes[0];
+    const strength = strengths[0];
+    if (size === 2) return { type: 'pair', cards, strength };
+    if (size === 3) return { type: 'triplet', cards, strength };
+    if (size === 4) return { type: 'quad', cards, strength };
+    return { type: 'throw', cards };
   }
 
-  return {
-    pairs: strengths.length,
-    maxStrength: strengths[strengths.length - 1],
-  };
+  // Multiple groups: check tractor patterns (all groups same size, consecutive)
+  const allSameSize = groupSizes.every(s => s === groupSizes[0]);
+  if (allSameSize && groupSizes[0] >= 2 && strengths.length >= 2) {
+    let consecutive = true;
+    for (let i = 1; i < strengths.length; i++) {
+      if (strengths[i] - strengths[i - 1] !== 1) {
+        consecutive = false;
+        break;
+      }
+    }
+    if (consecutive) {
+      const groupSize = groupSizes[0];
+      return {
+        type: 'tractor',
+        cards,
+        strength: strengths[strengths.length - 1],
+        groupSize,
+        groups: strengths.length,
+        pairs: groupSize === 2 ? strengths.length : undefined,
+      };
+    }
+  }
+
+  // Otherwise: throw
+  return { type: 'throw', cards };
 }
 
 // ══════════════════════════════════════════════════════════
@@ -310,34 +326,66 @@ export function validateThrow(cards, trumpSuit, trumpRank) {
 }
 
 /**
- * Decompose a throw into its components (tractors, pairs, singles).
+ * Decompose a throw into its components.
+ * Priority order: tractor-quads, quads, tractor-triplets, triplets, tractor-pairs, pairs, singles.
  */
 export function decomposeThrow(cards, trumpSuit, trumpRank) {
   const remaining = [...cards];
-  const components = { tractors: [], pairs: [], singles: [] };
+  const components = { tractors: [], quads: [], triplets: [], pairs: [], singles: [] };
 
-  // Extract tractors first (greedy)
-  const tractors = findTractors(remaining, trumpSuit, trumpRank);
-  for (const tractor of tractors) {
-    const tractorCards = tractor.flat();
-    for (const tc of tractorCards) {
-      const idx = remaining.findIndex(c => c.id === tc.id);
+  function extractCards(cardList) {
+    for (const c of cardList) {
+      const idx = remaining.findIndex(r => r.id === c.id);
       if (idx >= 0) remaining.splice(idx, 1);
     }
-    components.tractors.push(tractorCards);
   }
 
-  // Extract pairs
+  // 1. Tractor-quads
+  const tractorQuads = findTractorGroups(remaining, 4, trumpSuit, trumpRank);
+  for (const tractor of tractorQuads) {
+    const flat = tractor.flat();
+    extractCards(flat);
+    components.tractors.push(flat);
+  }
+
+  // 2. Quads
+  const quads = findQuads(remaining, trumpSuit, trumpRank);
+  for (const quad of quads) {
+    extractCards(quad);
+    components.quads.push(quad);
+  }
+
+  // 3. Tractor-triplets
+  const tractorTriplets = findTractorGroups(remaining, 3, trumpSuit, trumpRank);
+  for (const tractor of tractorTriplets) {
+    const flat = tractor.flat();
+    extractCards(flat);
+    components.tractors.push(flat);
+  }
+
+  // 4. Triplets
+  const triplets = findTriplets(remaining, trumpSuit, trumpRank);
+  for (const triplet of triplets) {
+    extractCards(triplet);
+    components.triplets.push(triplet);
+  }
+
+  // 5. Tractor-pairs
+  const tractors = findTractors(remaining, trumpSuit, trumpRank);
+  for (const tractor of tractors) {
+    const flat = tractor.flat();
+    extractCards(flat);
+    components.tractors.push(flat);
+  }
+
+  // 6. Pairs
   const pairs = findPairs(remaining, trumpSuit, trumpRank);
   for (const pair of pairs) {
-    for (const pc of pair) {
-      const idx = remaining.findIndex(c => c.id === pc.id);
-      if (idx >= 0) remaining.splice(idx, 1);
-    }
+    extractCards(pair);
     components.pairs.push(pair);
   }
 
-  // Remaining are singles
+  // 7. Singles
   components.singles = remaining;
 
   return components;
@@ -355,7 +403,7 @@ export function checkThrowBeatable(throwCards, otherHands, trumpSuit, trumpRank)
   for (const hand of otherHands) {
     const suitCards = hand.filter(c => getEffectiveSuit(c, trumpSuit, trumpRank) === suit);
 
-    // Check if any single can be beaten
+    // Check singles
     for (const single of components.singles) {
       const singleStrength = cardStrength(single, trumpSuit, trumpRank);
       if (suitCards.some(c => cardStrength(c, trumpSuit, trumpRank) > singleStrength)) {
@@ -363,7 +411,7 @@ export function checkThrowBeatable(throwCards, otherHands, trumpSuit, trumpRank)
       }
     }
 
-    // Check if any pair can be beaten
+    // Check pairs
     for (const pair of components.pairs) {
       const pairStrength = cardStrength(pair[0], trumpSuit, trumpRank);
       const opponentPairs = findPairs(suitCards, trumpSuit, trumpRank);
@@ -372,16 +420,36 @@ export function checkThrowBeatable(throwCards, otherHands, trumpSuit, trumpRank)
       }
     }
 
-    // Check if any tractor can be beaten
+    // Check triplets
+    for (const triplet of (components.triplets || [])) {
+      const tripletStrength = cardStrength(triplet[0], trumpSuit, trumpRank);
+      const opponentTriplets = findTriplets(suitCards, trumpSuit, trumpRank);
+      if (opponentTriplets.some(t => cardStrength(t[0], trumpSuit, trumpRank) > tripletStrength)) {
+        return { beatable: true, failCard: triplet[0] };
+      }
+    }
+
+    // Check quads
+    for (const quad of (components.quads || [])) {
+      const quadStrength = cardStrength(quad[0], trumpSuit, trumpRank);
+      const opponentQuads = findQuads(suitCards, trumpSuit, trumpRank);
+      if (opponentQuads.some(q => cardStrength(q[0], trumpSuit, trumpRank) > quadStrength)) {
+        return { beatable: true, failCard: quad[0] };
+      }
+    }
+
+    // Check tractors (all group sizes)
     for (const tractor of components.tractors) {
       const tractorAnalysis = analyzePlay(tractor, trumpSuit, trumpRank);
-      const opponentTractors = findTractors(suitCards, trumpSuit, trumpRank);
-      for (const oTractor of opponentTractors) {
-        const oCards = oTractor.flat();
-        if (oCards.length >= tractor.length) {
-          const oAnalysis = analyzePlay(oCards.slice(0, tractor.length), trumpSuit, trumpRank);
-          if (oAnalysis.strength > tractorAnalysis.strength) {
-            return { beatable: true, failCard: tractor[0] };
+      if (tractorAnalysis.type === 'tractor') {
+        const opponentTractors = findTractorGroups(suitCards, tractorAnalysis.groupSize, trumpSuit, trumpRank);
+        for (const oTractor of opponentTractors) {
+          const oCards = oTractor.flat();
+          if (oCards.length >= tractor.length) {
+            const oAnalysis = analyzePlay(oCards.slice(0, tractor.length), trumpSuit, trumpRank);
+            if (oAnalysis.strength > tractorAnalysis.strength) {
+              return { beatable: true, failCard: tractor[0] };
+            }
           }
         }
       }
@@ -450,16 +518,15 @@ export function determineTrickWinner(plays, trumpSuit, trumpRank) {
  * In Shengji, only matching structure can beat the lead.
  */
 function doesStructureMatch(leadAnalysis, followAnalysis) {
-  // Single vs single
   if (leadAnalysis.type === 'single') return followAnalysis.type === 'single';
-  // Pair vs pair
   if (leadAnalysis.type === 'pair') return followAnalysis.type === 'pair';
-  // Tractor vs tractor (same number of pairs)
+  if (leadAnalysis.type === 'triplet') return followAnalysis.type === 'triplet';
+  if (leadAnalysis.type === 'quad') return followAnalysis.type === 'quad';
   if (leadAnalysis.type === 'tractor') {
-    return followAnalysis.type === 'tractor' && followAnalysis.pairs === leadAnalysis.pairs;
+    return followAnalysis.type === 'tractor' &&
+      followAnalysis.groupSize === leadAnalysis.groupSize &&
+      followAnalysis.groups === leadAnalysis.groups;
   }
-  // Throw: for simplicity, can only be beaten by a matching structure throw
-  // (In practice, throws are complex — for now treat as max-card comparison if types differ)
   return leadAnalysis.type === followAnalysis.type;
 }
 
@@ -468,16 +535,7 @@ function doesStructureMatch(leadAnalysis, followAnalysis) {
  */
 function getStructuredStrength(cards, analysis, trumpSuit, trumpRank) {
   if (analysis.type === 'single') return cardStrength(cards[0], trumpSuit, trumpRank);
-  if (analysis.type === 'pair') return analysis.strength;
-  if (analysis.type === 'tractor') return analysis.strength;
-  // Fallback for throws or invalid: use max card
-  return Math.max(...cards.map(c => cardStrength(c, trumpSuit, trumpRank)));
-}
-
-function getPlayStrength(cards, trumpSuit, trumpRank) {
-  if (cards.length === 1) return cardStrength(cards[0], trumpSuit, trumpRank);
-
-  // For pairs/tractors: use highest card strength
+  if (['pair', 'triplet', 'quad', 'tractor'].includes(analysis.type)) return analysis.strength;
   return Math.max(...cards.map(c => cardStrength(c, trumpSuit, trumpRank)));
 }
 

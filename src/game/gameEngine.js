@@ -6,7 +6,7 @@
 import {
   dealCards, getDeckConfig, sortHand, countPoints, removeCards,
   isTrump, getEffectiveSuit, cardStrength, getCardDisplay, RANKS,
-  buildDeck, shuffle,
+  buildDeck, shuffle, findPairs, findGroups, findTractorGroups, groupBySuit,
 } from './cardUtils.js';
 
 import {
@@ -699,9 +699,111 @@ function nextTrick(state) {
   };
 }
 
+// ── AI Card Selection Helpers ──────────────────────────────
+
+/**
+ * AI selects cards when leading a trick.
+ * Occasionally leads with structures (pairs, triplets, etc.).
+ */
+function aiSelectLeadCards(hand, trumpSuit, trumpRank) {
+  // Group hand by effective suit
+  const suits = {};
+  for (const card of hand) {
+    const suit = getEffectiveSuit(card, trumpSuit, trumpRank);
+    if (!suits[suit]) suits[suit] = [];
+    suits[suit].push(card);
+  }
+
+  // 15% chance: try to lead with a pair or larger structure
+  if (Math.random() < 0.15) {
+    for (const suitCards of Object.values(suits)) {
+      if (suitCards.length < 2) continue;
+      // Try quads, triplets, pairs in order
+      for (const gs of [4, 3, 2]) {
+        const groups = findGroups(suitCards, gs, trumpSuit, trumpRank);
+        if (groups.length > 0) return groups[groups.length - 1]; // lowest group
+      }
+    }
+  }
+
+  // Default: play lowest card
+  return [hand[hand.length - 1]];
+}
+
+/**
+ * AI selects cards when following a trick.
+ * Respects structure-first downgrade rules: quad > triplet > pair > single.
+ */
+function aiSelectFollowCards(hand, leadPlay, trumpSuit, trumpRank) {
+  const count = leadPlay.length;
+  const leadSuit = getEffectiveSuit(leadPlay[0], trumpSuit, trumpRank);
+  const suitCards = hand.filter(c => getEffectiveSuit(c, trumpSuit, trumpRank) === leadSuit);
+
+  if (suitCards.length === 0) {
+    return hand.slice(-count);
+  }
+
+  if (suitCards.length <= count) {
+    if (suitCards.length < count) {
+      const others = hand.filter(c => getEffectiveSuit(c, trumpSuit, trumpRank) !== leadSuit);
+      return [...suitCards, ...others.slice(-(count - suitCards.length))];
+    }
+    return suitCards;
+  }
+
+  // Have more suit cards than needed - respect structure rules
+  const leadAnalysis = analyzePlay(leadPlay, trumpSuit, trumpRank);
+
+  if (leadAnalysis.type === 'single' || count === 1) {
+    return [suitCards[suitCards.length - 1]]; // lowest suit card
+  }
+
+  const selected = [];
+  const remaining = [...suitCards];
+
+  // Determine target group size from lead
+  let targetGroupSize = 1;
+  if (leadAnalysis.type === 'pair') targetGroupSize = 2;
+  else if (leadAnalysis.type === 'triplet') targetGroupSize = 3;
+  else if (leadAnalysis.type === 'quad') targetGroupSize = 4;
+  else if (leadAnalysis.type === 'tractor') targetGroupSize = leadAnalysis.groupSize;
+
+  // For tractors, try matching tractor first
+  if (leadAnalysis.type === 'tractor') {
+    const tractors = findTractorGroups(remaining, leadAnalysis.groupSize, trumpSuit, trumpRank);
+    const matching = tractors.filter(t => t.length >= leadAnalysis.groups);
+    if (matching.length > 0) {
+      return matching[0].slice(0, leadAnalysis.groups).flat();
+    }
+  }
+
+  // Structure downgrade: find highest available structures
+  for (let gs = targetGroupSize; gs >= 2; gs--) {
+    const groups = findGroups(remaining, gs, trumpSuit, trumpRank);
+    for (const group of groups) {
+      if (selected.length + group.length <= count) {
+        selected.push(...group);
+        for (const c of group) {
+          const idx = remaining.findIndex(r => r.id === c.id);
+          if (idx >= 0) remaining.splice(idx, 1);
+        }
+      }
+    }
+    if (selected.length >= count) break;
+  }
+
+  // Fill with remaining suit cards (lowest first - hand sorted high to low)
+  while (selected.length < count && remaining.length > 0) {
+    selected.push(remaining.pop());
+  }
+
+  return selected.slice(0, count);
+}
+
 /**
  * AI auto-play: computed entirely inside the reducer using fresh state.
  * Determines the current expected player, picks appropriate cards, and plays them.
+ * Structure-aware: respects triplet/quad/tractor rules for multi-deck modes.
  */
 function aiPlay(state) {
   if (state.phase !== PHASES.PLAYING) return state;
@@ -718,25 +820,15 @@ function aiPlay(state) {
   if (hand.length === 0) return state;
 
   const leadPlay = state.currentTrick.length > 0 ? state.currentTrick[0].cards : null;
-  const count = leadPlay ? leadPlay.length : 1;
 
   let cardsToPlay;
 
   if (!leadPlay) {
-    // Leading: play the last (highest) card
-    cardsToPlay = [hand[hand.length - 1]];
+    // Leading: sometimes play structures
+    cardsToPlay = aiSelectLeadCards(hand, state.trumpSuit, state.trumpRank);
   } else {
-    const leadSuit = getEffectiveSuit(leadPlay[0], state.trumpSuit, state.trumpRank);
-    const suitCards = hand.filter(c => getEffectiveSuit(c, state.trumpSuit, state.trumpRank) === leadSuit);
-
-    if (suitCards.length >= count) {
-      cardsToPlay = suitCards.slice(-count);
-    } else if (suitCards.length > 0) {
-      const others = hand.filter(c => getEffectiveSuit(c, state.trumpSuit, state.trumpRank) !== leadSuit);
-      cardsToPlay = [...suitCards, ...others.slice(-(count - suitCards.length))];
-    } else {
-      cardsToPlay = hand.slice(-count);
-    }
+    // Following: structure-aware card selection
+    cardsToPlay = aiSelectFollowCards(hand, leadPlay, state.trumpSuit, state.trumpRank);
   }
 
   // Directly execute the play (bypass SELECT_CARD + PLAY_CARDS)

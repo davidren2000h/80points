@@ -238,6 +238,68 @@ function isConsecutiveStrength(s1, s2, trumpSuit, trumpRank) {
   return s2 - s1 === 1;
 }
 
+// ── Multi-deck structure detection ─────────────────────────
+
+/**
+ * Find groups of exactly `groupSize` same-strength cards.
+ * For 3/4 deck modes: finds triplets (groupSize=3) or quads (groupSize=4).
+ */
+export function findGroups(cards, groupSize, trumpSuit, trumpRank) {
+  const byStrength = {};
+  for (const card of cards) {
+    const s = cardStrength(card, trumpSuit, trumpRank);
+    if (!byStrength[s]) byStrength[s] = [];
+    byStrength[s].push(card);
+  }
+  const groups = [];
+  for (const group of Object.values(byStrength)) {
+    const count = Math.floor(group.length / groupSize);
+    for (let i = 0; i < count; i++) {
+      groups.push(group.slice(i * groupSize, (i + 1) * groupSize));
+    }
+  }
+  return groups;
+}
+
+/**
+ * Find tractors made of consecutive groups of `groupSize`.
+ * E.g., groupSize=3 finds tractor-triplets like ♠333 ♠444.
+ */
+export function findTractorGroups(cards, groupSize, trumpSuit, trumpRank) {
+  const groups = findGroups(cards, groupSize, trumpSuit, trumpRank);
+  if (groups.length < 2) return [];
+
+  groups.sort((a, b) =>
+    cardStrength(a[0], trumpSuit, trumpRank) - cardStrength(b[0], trumpSuit, trumpRank)
+  );
+
+  const tractors = [];
+  let current = [groups[0]];
+
+  for (let i = 1; i < groups.length; i++) {
+    const prevStrength = cardStrength(current[current.length - 1][0], trumpSuit, trumpRank);
+    const currStrength = cardStrength(groups[i][0], trumpSuit, trumpRank);
+
+    if (isConsecutiveStrength(prevStrength, currStrength, trumpSuit, trumpRank)) {
+      current.push(groups[i]);
+    } else {
+      if (current.length >= 2) tractors.push([...current]);
+      current = [groups[i]];
+    }
+  }
+  if (current.length >= 2) tractors.push(current);
+
+  return tractors;
+}
+
+export function findTriplets(cards, trumpSuit, trumpRank) {
+  return findGroups(cards, 3, trumpSuit, trumpRank);
+}
+
+export function findQuads(cards, trumpSuit, trumpRank) {
+  return findGroups(cards, 4, trumpSuit, trumpRank);
+}
+
 // ── Card identity check ───────────────────────────────────
 export function sameCard(a, b) {
   return a.id === b.id;
