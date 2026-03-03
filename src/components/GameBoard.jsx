@@ -50,15 +50,8 @@ export default function GameBoard({ state, onAction }) {
     return () => clearTimeout(aiPlayTimerRef.current);
   }, [phase, currentPlayer, currentTrick.length]);
 
-  // ── DECLARING PHASE: auto-finalize when declaration exists ─
-  useEffect(() => {
-    if (phase !== PHASES.DECLARING) return;
-    // Auto-finalize after a short delay so player can see/counter
-    declareTimerRef.current = setTimeout(() => {
-      onAction({ type: 'FINALIZE_TRUMP' });
-    }, 2000); // 2s for player to review / counter-declare
-    return () => clearTimeout(declareTimerRef.current);
-  }, [phase]);
+  // ── DECLARING PHASE: player must click "Finalize Trump & Continue" ─
+  // No auto-timer — the TrumpDeclaration panel has a button for this.
 
   // ── BOTTOM PHASE: AI auto-discard when declarer is not player 0 ─
   useEffect(() => {
