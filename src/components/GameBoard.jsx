@@ -213,6 +213,7 @@ export default function GameBoard({ state, onAction }) {
               <Hand
                 cards={sortHand(hands[0], state.trumpSuit, state.trumpRank)}
                 disabled
+                deckCount={state.deckCount}
               />
             </div>
           </div>
@@ -303,7 +304,12 @@ export default function GameBoard({ state, onAction }) {
                 <span style={cardCountStyle}> ({hands[2].length})</span>
               </div>
               {pointBadge(2)}
-              <Hand cards={hands[2]} faceDown disabled label="" />
+              <Hand cards={hands[2].slice(0, Math.min(hands[2].length, 10))} faceDown disabled label="" />
+              {hands[2].length > 10 && (
+                <div style={{ fontSize: 10, color: '#95a5a6', textAlign: 'center' }}>
+                  +{hands[2].length - 10} more
+                </div>
+              )}
             </div>
 
             {/* Middle row: West — Trick — East */}
@@ -370,6 +376,7 @@ export default function GameBoard({ state, onAction }) {
                 selectedCards={selectedCards}
                 onCardClick={handleCardClick}
                 disabled={currentPlayer !== 0 || phase !== PHASES.PLAYING}
+                deckCount={state.deckCount}
               />
             </div>
 

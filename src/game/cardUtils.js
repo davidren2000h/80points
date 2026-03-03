@@ -189,16 +189,24 @@ export function groupBySuit(hand, trumpSuit, trumpRank) {
   return groups;
 }
 
+// ── Card identity key (same suit + rank = identical card across decks) ─────
+export function cardKey(card) {
+  if (card.suit === 'joker') return `joker-${card.rank}`;
+  return `${card.suit}-${card.rank}`;
+}
+
 // ── Find pairs, tractors in a hand for a specific suit ─────
 export function findPairs(cards, trumpSuit, trumpRank) {
-  const byStrength = {};
+  // Group by card identity (suit+rank), not by strength.
+  // A pair requires two IDENTICAL cards (same suit and rank from different decks).
+  const byIdentity = {};
   for (const card of cards) {
-    const s = cardStrength(card, trumpSuit, trumpRank);
-    if (!byStrength[s]) byStrength[s] = [];
-    byStrength[s].push(card);
+    const key = cardKey(card);
+    if (!byIdentity[key]) byIdentity[key] = [];
+    byIdentity[key].push(card);
   }
   const pairs = [];
-  for (const [strength, group] of Object.entries(byStrength)) {
+  for (const group of Object.values(byIdentity)) {
     for (let i = 0; i + 1 < group.length; i += 2) {
       pairs.push([group[i], group[i + 1]]);
     }
@@ -241,18 +249,19 @@ function isConsecutiveStrength(s1, s2, trumpSuit, trumpRank) {
 // ── Multi-deck structure detection ─────────────────────────
 
 /**
- * Find groups of exactly `groupSize` same-strength cards.
+ * Find groups of exactly `groupSize` identical cards (same suit+rank).
  * For 3/4 deck modes: finds triplets (groupSize=3) or quads (groupSize=4).
+ * Cards must be truly identical (same suit and rank), not just same strength.
  */
 export function findGroups(cards, groupSize, trumpSuit, trumpRank) {
-  const byStrength = {};
+  const byIdentity = {};
   for (const card of cards) {
-    const s = cardStrength(card, trumpSuit, trumpRank);
-    if (!byStrength[s]) byStrength[s] = [];
-    byStrength[s].push(card);
+    const key = cardKey(card);
+    if (!byIdentity[key]) byIdentity[key] = [];
+    byIdentity[key].push(card);
   }
   const groups = [];
-  for (const group of Object.values(byStrength)) {
+  for (const group of Object.values(byIdentity)) {
     const count = Math.floor(group.length / groupSize);
     for (let i = 0; i < count; i++) {
       groups.push(group.slice(i * groupSize, (i + 1) * groupSize));

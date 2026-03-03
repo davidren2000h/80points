@@ -25,6 +25,7 @@ export default function BottomPanel({ state, selectedCards, onCardClick, onDisca
         cards={hand}
         selectedCards={selectedCards}
         onCardClick={onCardClick}
+        deckCount={state.deckCount}
       />
 
       <button

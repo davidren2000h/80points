@@ -662,9 +662,11 @@ function playCards(state, player) {
   }
 
   // Bottom scoring on last trick
+  // Multiplier is based on lead play card count (not total cards in trick)
+  const leadPlaySize = newTrick[0].cards.length;
   let bottomScore = 0;
   if (isLastTrick && winnerTeam !== state.declarerTeam) {
-    bottomScore = calculateBottomScore(state.bottom, trickCards.length);
+    bottomScore = calculateBottomScore(state.bottom, leadPlaySize);
     nonDeclarerPoints += bottomScore;
   }
 
@@ -678,7 +680,7 @@ function playCards(state, player) {
     trickPoints: [...state.trickPoints, { winner, points, bottomScore }],
     tricksPlayed: state.tricksPlayed + 1,
     lastTrickWinner: winner,
-    lastTrickCardCount: trickCards.length,
+    lastTrickCardCount: leadPlaySize,
     selectedCards: [],
     message: isLastTrick
       ? `Last trick won by ${state.players[winner].name}! ${points > 0 ? `${points} points.` : ''} ${bottomScore > 0 ? `Bottom score: ${bottomScore}!` : ''} Round over!`
@@ -862,9 +864,11 @@ function aiPlay(state) {
     declarerPoints += points;
   }
 
+  // Multiplier is based on lead play card count (not total cards in trick)
+  const leadPlaySize = newTrick[0].cards.length;
   let bottomScore = 0;
   if (isLastTrick && winnerTeam !== state.declarerTeam) {
-    bottomScore = calculateBottomScore(state.bottom, trickCards.length);
+    bottomScore = calculateBottomScore(state.bottom, leadPlaySize);
     nonDeclarerPoints += bottomScore;
   }
 
@@ -878,7 +882,7 @@ function aiPlay(state) {
     trickPoints: [...state.trickPoints, { winner, points, bottomScore }],
     tricksPlayed: state.tricksPlayed + 1,
     lastTrickWinner: winner,
-    lastTrickCardCount: trickCards.length,
+    lastTrickCardCount: leadPlaySize,
     selectedCards: [],
     message: isLastTrick
       ? `Last trick won by ${state.players[winner].name}! ${points > 0 ? `${points} points.` : ''} ${bottomScore > 0 ? `Bottom score: ${bottomScore}!` : ''} Round over!`

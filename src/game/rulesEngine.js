@@ -4,7 +4,7 @@
  */
 
 import {
-  isTrump, getEffectiveSuit, cardStrength, countPoints,
+  isTrump, getEffectiveSuit, cardStrength, countPoints, cardKey,
   findPairs, findTractors, findGroups, findTractorGroups, findTriplets, findQuads,
   groupBySuit, SUITS, RANK_ORDER, removeCards,
 } from './cardUtils.js';
@@ -252,19 +252,23 @@ export function analyzePlay(cards, trumpSuit, trumpRank) {
   if (cards.length === 0) return { type: 'invalid' };
   if (cards.length === 1) return { type: 'single', cards, strength: cardStrength(cards[0], trumpSuit, trumpRank) };
 
-  // Group by strength
-  const byStrength = {};
+  // Group by card identity (suit+rank) — a pair/triplet/quad requires identical cards
+  const byIdentity = {};
   for (const card of cards) {
-    const s = cardStrength(card, trumpSuit, trumpRank);
-    if (!byStrength[s]) byStrength[s] = [];
-    byStrength[s].push(card);
+    const key = cardKey(card);
+    if (!byIdentity[key]) byIdentity[key] = [];
+    byIdentity[key].push(card);
   }
 
-  const strengths = Object.keys(byStrength).map(Number).sort((a, b) => a - b);
-  const groupSizes = strengths.map(s => byStrength[s].length);
+  const identityKeys = Object.keys(byIdentity);
+  const groups = identityKeys.map(k => byIdentity[k]);
+  // Sort groups by strength
+  groups.sort((a, b) => cardStrength(a[0], trumpSuit, trumpRank) - cardStrength(b[0], trumpSuit, trumpRank));
+  const groupSizes = groups.map(g => g.length);
+  const strengths = groups.map(g => cardStrength(g[0], trumpSuit, trumpRank));
 
-  // Single group of same-strength cards
-  if (strengths.length === 1) {
+  // Single identity group (all cards are truly identical)
+  if (groups.length === 1) {
     const size = groupSizes[0];
     const strength = strengths[0];
     if (size === 2) return { type: 'pair', cards, strength };
@@ -273,9 +277,9 @@ export function analyzePlay(cards, trumpSuit, trumpRank) {
     return { type: 'throw', cards };
   }
 
-  // Multiple groups: check tractor patterns (all groups same size, consecutive)
+  // Multiple identity groups: check tractor patterns (all groups same size, consecutive strengths)
   const allSameSize = groupSizes.every(s => s === groupSizes[0]);
-  if (allSameSize && groupSizes[0] >= 2 && strengths.length >= 2) {
+  if (allSameSize && groupSizes[0] >= 2 && groups.length >= 2) {
     let consecutive = true;
     for (let i = 1; i < strengths.length; i++) {
       if (strengths[i] - strengths[i - 1] !== 1) {
@@ -290,8 +294,8 @@ export function analyzePlay(cards, trumpSuit, trumpRank) {
         cards,
         strength: strengths[strengths.length - 1],
         groupSize,
-        groups: strengths.length,
-        pairs: groupSize === 2 ? strengths.length : undefined,
+        groups: groups.length,
+        pairs: groupSize === 2 ? groups.length : undefined,
       };
     }
   }

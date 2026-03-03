@@ -1,15 +1,28 @@
 import React from 'react';
 import { calculateLevelChange } from '../game/rulesEngine.js';
+import { countPoints } from '../game/cardUtils.js';
 
 /**
  * Score board displayed at round end.
  */
 export default function ScoreBoard({ state, onEndRound }) {
-  const { players, nonDeclarerPoints, deckCount, declarerTeam, config, trickPoints, bottom } = state;
+  const { players, nonDeclarerPoints, declarerPoints, deckCount, declarerTeam, config, trickPoints, bottom, lastTrickWinner } = state;
 
   const result = calculateLevelChange(nonDeclarerPoints, deckCount);
   const declarerTeamPlayers = players.filter(p => p.team === declarerTeam);
   const nonDeclarerTeamPlayers = players.filter(p => p.team !== declarerTeam);
+
+  // Bottom card points are set aside during play. If declarer wins last trick,
+  // these points are implicitly defended. Calculate for display:
+  const bottomRawPts = countPoints(bottom);
+  const lastWinnerTeam = players[lastTrickWinner]?.team;
+  const declarerWonLast = lastWinnerTeam === declarerTeam;
+  // Declarer's total: trick points + (bottom pts if they defended them)
+  const declarerTotal = declarerPoints + (declarerWonLast ? bottomRawPts : 0);
+
+  // Find bottom score from the last trick entry (if any)
+  const lastTrickEntry = trickPoints[trickPoints.length - 1];
+  const bottomScoreApplied = lastTrickEntry?.bottomScore || 0;
 
   return (
     <div style={overlayStyle}>
@@ -38,8 +51,13 @@ export default function ScoreBoard({ state, onEndRound }) {
               {declarerTeamPlayers.map(p => p.name).join(' & ')}
             </div>
             <div style={{ fontSize: 18, fontWeight: 'bold', color: '#27ae60' }}>
-              {config.totalPoints - nonDeclarerPoints} pts defended
+              {declarerTotal} pts defended
             </div>
+            {declarerWonLast && bottomRawPts > 0 && (
+              <div style={{ fontSize: 11, color: '#95a5a6' }}>
+                (incl. {bottomRawPts} pts in bottom)
+              </div>
+            )}
           </div>
 
           <div style={{ fontSize: 20, color: '#bdc3c7', padding: '0 16px' }}>vs</div>
@@ -52,6 +70,11 @@ export default function ScoreBoard({ state, onEndRound }) {
             <div style={{ fontSize: 18, fontWeight: 'bold', color: '#e74c3c' }}>
               {nonDeclarerPoints} pts captured
             </div>
+            {bottomScoreApplied > 0 && (
+              <div style={{ fontSize: 11, color: '#95a5a6' }}>
+                (incl. {bottomScoreApplied} bottom score ×{state.lastTrickCardCount})
+              </div>
+            )}
           </div>
         </div>
 
