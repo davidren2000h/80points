@@ -481,6 +481,12 @@ export function determineTrickWinner(plays, trumpSuit, trumpRank) {
   const leadSuit = getEffectiveSuit(leadCards[0], trumpSuit, trumpRank);
   const leadAnalysis = analyzePlay(leadCards, trumpSuit, trumpRank);
 
+  // Throws (甩牌) are only allowed when no opponent can beat any component,
+  // so the leader always wins a throw.
+  if (leadAnalysis.type === 'throw') {
+    return plays[0].player;
+  }
+
   let winnerIdx = 0;
   let winnerStrength = getStructuredStrength(leadCards, leadAnalysis, trumpSuit, trumpRank);
   let winnerIsTrump = leadSuit === 'trump';
