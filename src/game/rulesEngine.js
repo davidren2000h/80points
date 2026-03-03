@@ -481,12 +481,78 @@ export function determineTrickWinner(plays, trumpSuit, trumpRank) {
   const leadSuit = getEffectiveSuit(leadCards[0], trumpSuit, trumpRank);
   const leadAnalysis = analyzePlay(leadCards, trumpSuit, trumpRank);
 
-  // Throws (甩牌) are only allowed when no opponent can beat any component,
-  // so the leader always wins a throw.
+  // ── Throw (甩牌) handling ──
+  // Throws are validated as unbeatable in the lead suit before being played.
+  // For trump throws: leader always wins (no one can beat any component).
+  // For non-trump throws: followers void in the suit may ruff with trump.
   if (leadAnalysis.type === 'throw') {
-    return plays[0].player;
+    if (leadSuit === 'trump') {
+      console.log('[TRICK] Trump throw → leader always wins:', plays[0].player);
+      return plays[0].player;
+    }
+
+    // Non-trump throw: decompose to find the master component
+    // Master = largest group size, then highest strength
+    const components = decomposeThrow(leadCards, trumpSuit, trumpRank);
+    let masterCards = null;
+    const allComponents = [
+      ...components.tractors,
+      ...components.quads,
+      ...components.triplets,
+      ...components.pairs,
+      ...components.singles.map(c => [c]),
+    ];
+    for (const comp of allComponents) {
+      if (!masterCards || comp.length > masterCards.length ||
+          (comp.length === masterCards.length &&
+           cardStrength(comp[0], trumpSuit, trumpRank) > cardStrength(masterCards[0], trumpSuit, trumpRank))) {
+        masterCards = comp;
+      }
+    }
+    const masterAnalysis = analyzePlay(masterCards, trumpSuit, trumpRank);
+
+    let winnerIdx = 0;
+    let winnerMaxTrump = 0;
+
+    for (let i = 1; i < plays.length; i++) {
+      const followCards = plays[i].cards;
+      const trumpCards = followCards.filter(c => getEffectiveSuit(c, trumpSuit, trumpRank) === 'trump');
+      if (trumpCards.length === 0) continue; // Same-suit followers can't beat (validated)
+
+      // Check if the follower's trump cards contain a matching structure for the master component
+      const trumpAnalysis = analyzePlay(trumpCards, trumpSuit, trumpRank);
+
+      // For a single master, any trump card wins
+      // For a pair/triplet/quad master, need matching structure in trump cards
+      // For tractors, need matching tractor in trump cards
+      let canBeat = false;
+      if (masterAnalysis.type === 'single') {
+        canBeat = trumpCards.length >= 1;
+      } else if (['pair', 'triplet', 'quad'].includes(masterAnalysis.type)) {
+        // Check if trump cards contain a group of the required size
+        const neededSize = masterCards.length;
+        const groups = findGroups(trumpCards, neededSize, trumpSuit, trumpRank);
+        canBeat = groups.length > 0;
+      } else if (masterAnalysis.type === 'tractor') {
+        const tractors = findTractorGroups(trumpCards, masterAnalysis.groupSize, trumpSuit, trumpRank);
+        canBeat = tractors.some(t => t.length >= masterAnalysis.groups);
+      }
+
+      if (!canBeat) continue;
+
+      const maxTrump = Math.max(...trumpCards.map(c => cardStrength(c, trumpSuit, trumpRank)));
+      if (winnerIdx === 0 || maxTrump > winnerMaxTrump) {
+        winnerIdx = i;
+        winnerMaxTrump = maxTrump;
+      }
+    }
+
+    console.log('[TRICK] Non-trump throw: leader=', plays[0].player, 'winner=', plays[winnerIdx].player,
+      'masterType=', masterAnalysis.type);
+    return plays[winnerIdx].player;
   }
 
+  // ── Standard play (single, pair, triplet, quad, tractor) ──
   let winnerIdx = 0;
   let winnerStrength = getStructuredStrength(leadCards, leadAnalysis, trumpSuit, trumpRank);
   let winnerIsTrump = leadSuit === 'trump';
@@ -520,6 +586,8 @@ export function determineTrickWinner(plays, trumpSuit, trumpRank) {
     }
   }
 
+  console.log('[TRICK] Standard play:', leadAnalysis.type, 'leader=', plays[0].player,
+    'winner=', plays[winnerIdx].player, 'winnerStrength=', winnerStrength);
   return plays[winnerIdx].player;
 }
 

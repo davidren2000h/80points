@@ -647,6 +647,8 @@ function playCards(state, player) {
 
   // Trick complete — determine winner
   const winner = determineTrickWinner(newTrick, state.trumpSuit, state.trumpRank);
+  console.log('[playCards] Trick complete. plays:', newTrick.map(p => ({ player: p.player, name: state.players[p.player].name, cards: p.cards.map(c => `${c.suit}-${c.rank}`) })),
+    'winner:', winner, state.players[winner].name);
   const trickCards = newTrick.flatMap(p => p.cards);
   const points = countPoints(trickCards);
   const isLastTrick = newHands.every(h => h.length === 0);
@@ -691,6 +693,8 @@ function playCards(state, player) {
 function nextTrick(state) {
   if (state.phase !== PHASES.TRICK_END) return state;
 
+  console.log('[nextTrick] lastTrickWinner:', state.lastTrickWinner,
+    state.players[state.lastTrickWinner]?.name, '→ new trickLeader');
   return {
     ...state,
     phase: PHASES.PLAYING,
@@ -818,6 +822,9 @@ function aiPlay(state) {
   // Only AI players (1, 2, 3)
   if (player <= 0) return state;
 
+  console.log('[aiPlay] player:', player, state.players[player].name,
+    'trickLeader:', state.trickLeader, 'trickLen:', state.currentTrick.length);
+
   const hand = state.hands[player];
   if (hand.length === 0) return state;
 
@@ -851,6 +858,8 @@ function aiPlay(state) {
 
   // Trick complete — determine winner
   const winner = determineTrickWinner(newTrick, state.trumpSuit, state.trumpRank);
+  console.log('[aiPlay] Trick complete. plays:', newTrick.map(p => ({ player: p.player, name: state.players[p.player].name, cards: p.cards.map(c => `${c.suit}-${c.rank}`) })),
+    'winner:', winner, state.players[winner].name);
   const trickCards = newTrick.flatMap(p => p.cards);
   const points = countPoints(trickCards);
   const isLastTrick = newHands.every(h => h.length === 0);
