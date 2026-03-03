@@ -5,7 +5,16 @@ import Card from './Card.jsx';
  * Displays the current trick area — cards played in the current trick.
  */
 export default function TrickArea({ trick, players, trickLeader }) {
+  // Determine if cards should be shrunk based on max cards in any single play
+  const maxCards = trick.reduce((max, play) => Math.max(max, play.cards.length), 0);
+  const useSmall = maxCards > 3;
+  // Overlap cards when there are many
+  const cardWidth = useSmall ? 48 : 70;
+  const overlap = maxCards > 6 ? -(cardWidth * 0.45) : maxCards > 4 ? -(cardWidth * 0.3) : 2;
+
   // Position plays around a central area: South(bottom), West(left), North(top), East(right)
+  // For horizontal positions (South/North), cards fan horizontally
+  // For vertical positions (West/East), cards fan horizontally too but positioned at sides
   const positions = [
     { label: 'South', style: { bottom: 10, left: '50%', transform: 'translateX(-50%)' } },
     { label: 'West', style: { top: '50%', left: 10, transform: 'translateY(-50%)' } },
@@ -19,9 +28,11 @@ export default function TrickArea({ trick, players, trickLeader }) {
         {trick.map((play, i) => {
           const pos = positions[play.player];
           return (
-            <div key={i} style={{ position: 'absolute', ...pos.style, display: 'flex', gap: 2 }}>
-              {play.cards.map(card => (
-                <Card key={card.id} card={card} disabled />
+            <div key={i} style={{ position: 'absolute', ...pos.style, display: 'flex' }}>
+              {play.cards.map((card, cardIdx) => (
+                <div key={card.id} style={{ marginLeft: cardIdx > 0 ? overlap : 0 }}>
+                  <Card card={card} disabled small={useSmall} />
+                </div>
               ))}
             </div>
           );
