@@ -662,6 +662,10 @@ function playCards(state, player) {
   } else {
     declarerPoints += points;
   }
+  console.log('[playCards] Points:', points, 'winner:', state.players[winner].name,
+    'team:', winnerTeam, 'declarerTeam:', state.declarerTeam,
+    'declarer:', nonDeclarerPoints, '(was', state.nonDeclarerPoints, ')',
+    'nonDeclarer:', declarerPoints, '(was', state.declarerPoints, ')');
 
   // Bottom scoring on last trick
   // Multiplier is based on lead play card count (not total cards in trick)
@@ -671,6 +675,14 @@ function playCards(state, player) {
     bottomScore = calculateBottomScore(state.bottom, leadPlaySize);
     nonDeclarerPoints += bottomScore;
   }
+
+  // Build clearer message showing which team got the points
+  const winnerIsMyTeam = winnerTeam === state.players[0].team;
+  const trickMsg = isLastTrick
+    ? `Last trick won by ${state.players[winner].name}! ${points > 0 ? `${points} pts.` : ''} ${bottomScore > 0 ? `Bottom score: ${bottomScore}!` : ''} Round over!`
+    : points > 0
+      ? `${state.players[winner].name} wins! +${points} pts → ${winnerIsMyTeam ? 'Your team' : 'Opponents'}`
+      : `${state.players[winner].name} wins the trick. No points.`;
 
   return {
     ...state,
@@ -684,9 +696,7 @@ function playCards(state, player) {
     lastTrickWinner: winner,
     lastTrickCardCount: leadPlaySize,
     selectedCards: [],
-    message: isLastTrick
-      ? `Last trick won by ${state.players[winner].name}! ${points > 0 ? `${points} points.` : ''} ${bottomScore > 0 ? `Bottom score: ${bottomScore}!` : ''} Round over!`
-      : `${state.players[winner].name} wins the trick! ${points > 0 ? `${points} points captured.` : 'No points.'} `,
+    message: trickMsg,
   };
 }
 
@@ -872,6 +882,10 @@ function aiPlay(state) {
   } else {
     declarerPoints += points;
   }
+  console.log('[aiPlay] Points:', points, 'winner:', state.players[winner].name,
+    'team:', winnerTeam, 'declarerTeam:', state.declarerTeam,
+    'declarer:', nonDeclarerPoints, '(was', state.nonDeclarerPoints, ')',
+    'nonDeclarer:', declarerPoints, '(was', state.declarerPoints, ')');
 
   // Multiplier is based on lead play card count (not total cards in trick)
   const leadPlaySize = newTrick[0].cards.length;
@@ -880,6 +894,14 @@ function aiPlay(state) {
     bottomScore = calculateBottomScore(state.bottom, leadPlaySize);
     nonDeclarerPoints += bottomScore;
   }
+
+  // Build clearer message showing which team got the points
+  const winnerIsMyTeam = winnerTeam === state.players[0].team;
+  const trickMsg = isLastTrick
+    ? `Last trick won by ${state.players[winner].name}! ${points > 0 ? `${points} pts.` : ''} ${bottomScore > 0 ? `Bottom score: ${bottomScore}!` : ''} Round over!`
+    : points > 0
+      ? `${state.players[winner].name} wins! +${points} pts → ${winnerIsMyTeam ? 'Your team' : 'Opponents'}`
+      : `${state.players[winner].name} wins the trick. No points.`;
 
   return {
     ...state,
@@ -893,9 +915,7 @@ function aiPlay(state) {
     lastTrickWinner: winner,
     lastTrickCardCount: leadPlaySize,
     selectedCards: [],
-    message: isLastTrick
-      ? `Last trick won by ${state.players[winner].name}! ${points > 0 ? `${points} points.` : ''} ${bottomScore > 0 ? `Bottom score: ${bottomScore}!` : ''} Round over!`
-      : `${state.players[winner].name} wins the trick! ${points > 0 ? `${points} points captured.` : 'No points.'} `,
+    message: trickMsg,
   };
 }
 

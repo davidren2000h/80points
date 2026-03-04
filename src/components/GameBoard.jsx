@@ -247,43 +247,31 @@ export default function GameBoard({ state, onAction }) {
         {/* ── PLAYING / TRICK_END PHASE ──────────────── */}
         {(phase === PHASES.PLAYING || phase === PHASES.TRICK_END) && (() => {
           // Determine which player shows the point badge for each team
-          const escaped = state.nonDeclarerPoints;
-          const safe = state.declarerPoints;
+          const nonDeclPts = state.nonDeclarerPoints;
+          const declPts = state.declarerPoints;
           const declarerTeam = state.declarerTeam;
           const myTeam = state.players[0].team; // South's team
-
-          // Always show declarer-side badges on South (player 0),
-          // and opponent-side badge on one opponent.
           const isMyTeamDeclarer = myTeam === declarerTeam;
+          const myTeamPts = isMyTeamDeclarer ? declPts : nonDeclPts;
+          const oppTeamPts = isMyTeamDeclarer ? nonDeclPts : declPts;
 
           const pointBadge = (playerIdx) => {
             const playerTeam = state.players[playerIdx].team;
             if (playerIdx === 0) {
-              // South always shows our team's badge
-              if (isMyTeamDeclarer) {
-                return (
-                  <span style={safeBadgeStyle}>✅ Safe: {safe}</span>
-                );
-              } else {
-                return (
-                  <span style={earnedBadgeStyle}>💰 Earned: {escaped}</span>
-                );
-              }
+              // South always shows our team's points
+              return (
+                <span style={safeBadgeStyle}>
+                  {isMyTeamDeclarer ? '🛡️' : '💰'} Your team: {myTeamPts} pts
+                </span>
+              );
             }
-            // Show opponent badge on one opponent only
-            if (playerTeam !== myTeam) {
-              const showOn = myTeam === 0 ? 1 : 0;
-              if (playerIdx === showOn) {
-                if (isMyTeamDeclarer) {
-                  return (
-                    <span style={earnedBadgeStyle}>💰 Earned: {escaped}</span>
-                  );
-                } else {
-                  return (
-                    <span style={safeBadgeStyle}>✅ Safe: {safe}</span>
-                  );
-                }
-              }
+            // Show opponent badge on one opponent only (West)
+            if (playerTeam !== myTeam && playerIdx === 1) {
+              return (
+                <span style={earnedBadgeStyle}>
+                  {isMyTeamDeclarer ? '💰' : '🛡️'} Opponents: {oppTeamPts} pts
+                </span>
+              );
             }
             return null;
           };

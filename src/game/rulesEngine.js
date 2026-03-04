@@ -566,11 +566,16 @@ export function determineTrickWinner(plays, trumpSuit, trumpRank) {
     const followAnalysis = analyzePlay(followCards, trumpSuit, trumpRank);
     const structureMatches = doesStructureMatch(leadAnalysis, followAnalysis);
 
+    const playStrength = structureMatches
+      ? getStructuredStrength(followCards, followAnalysis, trumpSuit, trumpRank)
+      : 0;
+
+    console.log(`[TRICK]  play[${i}] player=${plays[i].player} suit=${playSuit} type=${followAnalysis.type}` +
+      ` str=${playStrength} match=${structureMatches} trump=${playIsTrump}`);
+
     // A play can only win if it matches the lead's structure
     // (e.g., pair beats pair, tractor beats tractor, single beats single)
     if (!structureMatches) continue;
-
-    const playStrength = getStructuredStrength(followCards, followAnalysis, trumpSuit, trumpRank);
 
     if (playIsTrump && !winnerIsTrump) {
       // Trump beats non-trump (but only if structure matches)
@@ -586,8 +591,9 @@ export function determineTrickWinner(plays, trumpSuit, trumpRank) {
     }
   }
 
-  console.log('[TRICK] Standard play:', leadAnalysis.type, 'leader=', plays[0].player,
-    'winner=', plays[winnerIdx].player, 'winnerStrength=', winnerStrength);
+  console.log('[TRICK] Standard play:', leadAnalysis.type, 'leadSuit=', leadSuit,
+    'leader=', plays[0].player, '→ winner=', plays[winnerIdx].player,
+    'winnerStr=', winnerStrength, 'winnerIsTrump=', winnerIsTrump);
   return plays[winnerIdx].player;
 }
 
